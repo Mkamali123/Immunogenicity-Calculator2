@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Immunogenicity Score Calculator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    h1 {
+      color: #333;
+    }
+    input, button {
+      padding: 10px;
+      margin: 5px 0;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h1>Immunogenicity Score Calculator (Weighted/Demo)</h1>
+  <p>Enter the sequence (e.g., ARNDCEQGH):</p>
+  
+  <form onsubmit="calculateScore(); return false;">
+    <input type="text" id="sequenceInput" placeholder="Enter sequence here">
+    <button type="submit">Calculate</button>
+  </form>
+  
+  <h2>Result:</h2>
+  <p id="result">Your score will appear here.</p>
+
+  <script>
+    // Amino acid data with normalized values
+    const aminoAcidData = {
+      A: { size: 0.403, hydropathy: 0.35, polarity: 0.4531, aromaticity: 0, sasa: 0.287, charge: 0, pI: 0.391, ssPa: 0.904, ssPb: 0.346, entropy: 0.2 },
+      R: { size: 0.875, hydropathy: 1, polarity: 1, aromaticity: 0, sasa: 0.874, charge: 1, pI: 1, ssPa: 0.436, ssPb: 0.421, entropy: 0.3 },
+      N: { size: 0.756, hydropathy: 0.8, polarity: 0.5625, aromaticity: 0, sasa: 0.561, charge: 0, pI: 0.315, ssPa: 0.106, ssPb: 0.391, entropy: 0.25 },
+      D: { size: 0.72, hydropathy: 0.9, polarity: 1, aromaticity: 0, sasa: 0.49, charge: 0.309, pI: 0, ssPa: 0.468, ssPb: 0.128, entropy: 0.22 },
+      C: { size: 0.487, hydropathy: 0.25, polarity: 0.375, aromaticity: 0, sasa: 0.435, charge: 0.667, pI: 0.846, ssPa: 0.138, ssPb: 0.617, entropy: 0.18 },
+      Q: { size: 0.654, hydropathy: 0.75, polarity: 0.5625, aromaticity: 0, sasa: 0.647, charge: 0, pI: 0.343, ssPa: 0.574, ssPb: 0.549, entropy: 0.27 },
+      E: { size: 0.638, hydropathy: 0.85, polarity: 0.5313, aromaticity: 0, sasa: 0.639, charge: 0.341, pI: 0.031, ssPa: 0.1, ssPb: 0.286, entropy: 0.24 },
+      G: { size: 0, hydropathy: 0.4, polarity: 0.4531, aromaticity: 0, sasa: 0, charge: 0, pI: 0.384, ssPa: 0, ssPb: 0.286, entropy: 0.15 },
+      H: { size: 0.788, hydropathy: 0.7, polarity: 0.5313, aromaticity: 0, sasa: 0.688, charge: 0.484, pI: 0.595, ssPa: 0.457, ssPb: 0.376, entropy: 0.28 },
+      I: { size: 0.408, hydropathy: 0.2, polarity: 0.4531, aromaticity: 0, sasa: 0.687, charge: 0, pI: 0.995, ssPa: 0.681, ssPb: 0.376, entropy: 0.19 },
+      L: { size: 0.481, hydropathy: 0.15, polarity: 0.25, aromaticity: 0, sasa: 0.726, charge: 0, pI: 0.95, ssPa: 0.681, ssPb: 0.699, entropy: 0.2 },
+      K: { size: 0.751, hydropathy: 0.6, polarity: 1, aromaticity: 0, sasa: 0.85, charge: 0.865, pI: 0.75, ssPa: 0.936, ssPb: 0.511, entropy: 0.3 },
+      M: { size: 0.565, hydropathy: 0.45, polarity: 0.3281, aromaticity: 0, sasa: 0.726, charge: 0, pI: 0.374, ssPa: 0.596, ssPb: 0.759, entropy: 0.21 },
+      F: { size: 0.793, hydropathy: 0.3, polarity: 0.1406, aromaticity: 0.33, sasa: 0.26, charge: 0, pI: 0.427, ssPa: 0.213, ssPb: 0.135, entropy: 0.33 },
+      P: { size: 0.693, hydropathy: 0.5, polarity: 0.5313, aromaticity: 0, sasa: 0.46, charge: 0, pI: 0.427, ssPa: 0.213, ssPb: 0.128, entropy: 0.2 },
+      S: { size: 0.414, hydropathy: 0.55, polarity: 0.5781, aromaticity: 0, sasa: 0.358, charge: 0, pI: 0.315, ssPa: 0.083, ssPb: 0.391, entropy: 0.22 },
+      T: { size: 0.363, hydropathy: 0.25, polarity: 0.4688, aromaticity: 0, sasa: 0.499, charge: 0, pI: 0.499, ssPa: 0.12, ssPb: 0.617, entropy: 0.23 },
+      W: { size: 0.852, hydropathy: 0.7, polarity: 0, aromaticity: 0.67, sasa: 1, charge: 0, pI: 0.374, ssPa: 0.543, ssPb: 0.752, entropy: 0.35 },
+      Y: { size: 0.852, hydropathy: 0.75, polarity: 0.1719, aromaticity: 0.67, sasa: 0.935, charge: 0.807, pI: 0.827, ssPa: 0.521, ssPb: 1, entropy: 0.33 },
+      V: { size: 0.314, hydropathy: 0.1, polarity: 0.2969, aromaticity: 0, sasa: 0.549, charge: 0, pI: 0.384, ssPa: 0.521, ssPb: 1, entropy: 0.2 },
+    };
+
+    function calculateScore() {
+      const inputSequence = document.getElementById("sequenceInput").value.toUpperCase();
+
+      // Validate the input
+      if (!inputSequence || !/^[ARNDCEQGHILKMFPSTWYV]+$/.test(inputSequence)) {
+        document.getElementById("result").innerText = "Please enter a valid amino acid sequence.";
+        return;
+      }
+
+      let totalScore = 0;
+      let count = 0;
+
+      // Calculate the score
+      for (const aminoAcid of inputSequence) {
+        const properties = aminoAcidData[aminoAcid];
+        if (properties) {
+          totalScore += properties.hydropathy; // Example: Using hydropathy for score
+          count++;
+        }
+      }
+
+      // Compute average score
+      const averageScore = (count > 0) ? (totalScore / count) : 0;
+
+      // Format the result to 4-5 decimal places
+      const formattedScore = averageScore.toFixed(5);
+
+      // Display the result
+      document.getElementById("result").innerText = `Calculated Score: ${formattedScore}`;
+    }
+  </script>
+
+  <h6>Developed by Professor Helen McCarthy's Research Group</h6>
+</body>
+</html>
